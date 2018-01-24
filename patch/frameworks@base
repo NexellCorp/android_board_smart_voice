@@ -1,0 +1,106 @@
+diff --git media/java/android/media/AudioAttributes.java media/java/android/media/AudioAttributes.java
+index 89709ee..bc1dae8 100644
+--- media/java/android/media/AudioAttributes.java
++++ media/java/android/media/AudioAttributes.java
+@@ -654,6 +654,7 @@ public final class AudioAttributes implements Parcelable {
+                 case MediaRecorder.AudioSource.VOICE_RECOGNITION:
+                 case MediaRecorder.AudioSource.VOICE_COMMUNICATION:
+                 case MediaRecorder.AudioSource.UNPROCESSED:
++                case MediaRecorder.AudioSource.VOICE_CALL:
+                     mSource = preset;
+                     break;
+                 default:
+diff --git services/core/java/com/android/server/policy/PhoneWindowManager.java services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 889c52a..17761eb 100644
+--- services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -443,6 +443,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     IUiModeManager mUiModeManager;
+     int mUiMode;
+     int mDockMode = Intent.EXTRA_DOCK_STATE_UNDOCKED;
++	int mDefaultOrientation = Surface.ROTATION_0;
+     int mLidOpenRotation;
+     int mCarDockRotation;
+     int mDeskDockRotation;
+@@ -1715,6 +1716,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         mPowerKeyWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                 "PhoneWindowManager.mPowerKeyWakeLock");
+         mEnableShiftMenuBugReports = "1".equals(SystemProperties.get("ro.debuggable"));
++		mDefaultOrientation = Integer.parseInt(SystemProperties.get("ro.orientation","0"));
+         mSupportAutoRotation = mContext.getResources().getBoolean(
+                 com.android.internal.R.bool.config_supportAutoRotation);
+         mLidOpenRotation = readRotation(
+@@ -6797,12 +6799,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                             ? "USER_ROTATION_LOCKED" : "")
+                         );
+         }
+-
+-        if (mForceDefaultOrientation) {
+-            return Surface.ROTATION_0;
++		if (mForceDefaultOrientation) {
++            return mDefaultOrientation;
+         }
+-
+-        synchronized (mLock) {
++		synchronized (mLock) {
+             int sensorRotation = mOrientationListener.getProposedRotation(); // may be -1
+             if (sensorRotation < 0) {
+                 sensorRotation = lastRotation;
+@@ -6947,7 +6947,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     if (preferredRotation >= 0) {
+                         return preferredRotation;
+                     }
+-                    return Surface.ROTATION_0;
++					return mDefaultOrientation;
+             }
+         }
+     }
+diff --git services/core/java/com/android/server/audio/AudioService.java services/core/java/com/android/server/audio/AudioService.java
+index c70a87c..d52b410 100644
+--- services/core/java/com/android/server/audio/AudioService.java
++++ services/core/java/com/android/server/audio/AudioService.java
+@@ -614,8 +614,42 @@ public class AudioService extends IAudioService.Stub {
+         Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+         mHasVibrator = vibrator == null ? false : vibrator.hasVibrator();
+ 
+-        // Initialize volume
+-        int maxVolume = SystemProperties.getInt("ro.config.vc_call_vol_steps",
++       // Initialize volume
++		int defaultMaxVolume = SystemProperties.getInt("ro.config.default_vol_steps",0);
++		if (defaultMaxVolume != 0) {
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_VOICE_CALL] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_VOICE_CALL] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_SYSTEM] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_SYSTEM] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_RING] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_RING] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_MUSIC] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_MUSIC] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_ALARM] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_ALARM] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_NOTIFICATION] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_NOTIFICATION] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_BLUETOOTH_SCO] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_BLUETOOTH_SCO] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_SYSTEM_ENFORCED] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_SYSTEM_ENFORCED] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_DTMF] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_DTMF] = (defaultMaxVolume * 3) / 4;
++
++			MAX_STREAM_VOLUME[AudioSystem.STREAM_TTS] = defaultMaxVolume;
++            AudioSystem.DEFAULT_STREAM_VOLUME[AudioSystem.STREAM_TTS] = (defaultMaxVolume * 3) / 4;
++
++		}
++		int maxVolume = SystemProperties.getInt("ro.config.vc_call_vol_steps",
+                 MAX_STREAM_VOLUME[AudioSystem.STREAM_VOICE_CALL]);
+         if (maxVolume != MAX_STREAM_VOLUME[AudioSystem.STREAM_VOICE_CALL]) {
+             MAX_STREAM_VOLUME[AudioSystem.STREAM_VOICE_CALL] = maxVolume;
