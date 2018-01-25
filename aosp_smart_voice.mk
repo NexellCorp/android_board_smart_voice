@@ -27,7 +27,7 @@ PRODUCT_COPY_FILES += \
 	device/nexell/kernel/kernel-4.4.x/arch/arm/boot/zImage:kernel
 
 PRODUCT_COPY_FILES += \
-	device/nexell/kernel/kernel-4.4.x/arch/arm/boot/dts/s5p4418-smart_voice.dtb:2ndbootloader
+	device/nexell/kernel/kernel-4.4.x/arch/arm/boot/dts/s5p4418-smart_voice-rev01.dtb:2ndbootloader
 
 PRODUCT_PROPERTY_OVERRIDES += \
 	ro.product.first_api_level=21
